@@ -1,0 +1,10 @@
+@c Annoying way to just print "Hello, world!"
+@c vsyc++ demo
+
+@func {test} () {
+    @return "Hello, world!"
+}
+
+@declare "statement = 0"
+@call "*test" () {statement}
+@print "[#statement]

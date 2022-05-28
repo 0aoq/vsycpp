@@ -5,8 +5,6 @@
  * @license Apache-2.0
  */
 
-import * as keywords from './keywords.js'
-
 // functions
 
 /**
@@ -30,7 +28,7 @@ export const typeList = {
  * @param {string} str
  * @returns {string} typeName
  */
-const getType = (str) => {
+const getType = (str: any) => {
     switch (str) {
         case str.match(/[0-9]/gm):
             return typeList.NUMBER
@@ -55,7 +53,7 @@ const getType = (str) => {
  * @param {number} start
  * @returns {object} node
  */
-export const getNodeOfTypeFrom = (tree, type, start) => {
+export const getNodeOfTypeFrom = (tree: any, type: string, start: number) => {
     for (let i = start; i < tree.length; i++) {
         if (!tree[i]) continue
         if (tree[i].type === type) {
@@ -65,7 +63,7 @@ export const getNodeOfTypeFrom = (tree, type, start) => {
 }
 
 // main
-export const main = (str) => {
+export const main = (str: string) => {
     let tree = [
         /* { type: typeList.SELF_TYPE, value: '' } */
     ]
@@ -81,7 +79,7 @@ export const main = (str) => {
     }
 
     // helper functions
-    function getLastNodeOfType(type) {
+    function getLastNodeOfType(type: string) {
         for (let i = tree.length - 1; i >= 0; i--) {
             if (tree[i].type === type) {
                 return tree[i]
@@ -91,7 +89,7 @@ export const main = (str) => {
         return { value: '', type: '' } // sink node
     }
 
-    function createNode(type, value) {
+    function createNode(type: string, value: string) {
         tree.push({
             type: type,
             value: value,
@@ -101,7 +99,7 @@ export const main = (str) => {
         })
     }
 
-    function getNodeFromParenti(parenti) {
+    function getNodeFromParenti(parenti: number) {
         // get node with parent index
         if (tree[parenti]) return tree[parenti]
         return { value: '', type: '' } // sink node
@@ -164,11 +162,6 @@ export const main = (str) => {
             case '@':
                 state.inKeyword = true
                 if (state.inKeyword) createNode(typeList.KEYWORD, '')
-                break
-
-            // handle numbers
-            case getType(char) === typeList.NUMBER:
-                if (!state.inString) createNode(typeList.NUMBER, '')
                 break
 
             // handle default operation

@@ -6,7 +6,6 @@
  */
 
 import * as tokenizer from './tokenizer.js'
-import * as keywords from './keywords.js'
 
 /**
  * @global
@@ -23,7 +22,7 @@ export let addressStore = []
  * @param {object} data
  * @returns {number} address
  */
-export const registerAddress = (type, data) => {
+export const registerAddress = (type: string, data: object) => {
     const address = addressStore.length * 812
 
     addressStore.push({
@@ -41,7 +40,7 @@ export const registerAddress = (type, data) => {
  * @param {number} address
  * @returns {object}
  */
-export const getFromAddress = (address) => {
+export const getFromAddress = (address: number) => {
     for (let i = 0; i < addressStore.length; i++) {
         if (addressStore[i].address === address) {
             return addressStore[i]
@@ -56,7 +55,7 @@ let globalTree = []
  * @description Replace variables in a tree with their values
  * @param {object} tree 
  */
-export const replaceVariablesInTree = (tree = globalTree) => {
+export const replaceVariablesInTree = (tree: any = globalTree) => {
     for (let address of addressStore) {
         if (address.type === tokenizer.typeList.STRING) {
             for (let i = 0; i < tree.length; i++) {
@@ -84,7 +83,7 @@ export const replaceVariablesInTree = (tree = globalTree) => {
  * @param {boolean} allowBlockCode Allow code inside blocks to run
  * @returns {object}
  */
-export const processKeyword = (keyword, line, _address, allowBlockCode) => {
+export const processKeyword = (keyword: string, line: any, _address: any, allowBlockCode: boolean) => {
     // if globalTree[line.parenti] is of type 'block' return
     // make sure function code doesn't get executed until needed
     if (
@@ -239,7 +238,7 @@ export const processKeyword = (keyword, line, _address, allowBlockCode) => {
 
 // main
 
-export const main = (str) => {
+export const main = (str: string) => {
     const tree = tokenizer.main(str) // tokenize
 
     // process
@@ -252,7 +251,7 @@ export const main = (str) => {
  * @description Evaluate a line of code
  * @param {object} line 
  */
-export const evaluateLine = (line, address = 0, allowBlockCode = false) => {
+export const evaluateLine = (line: any, address: number = 0, allowBlockCode: boolean = false) => {
     switch (line.type) {
         case tokenizer.typeList.KEYWORD:
             const _eval = processKeyword(line.value, line, address, allowBlockCode)
@@ -273,7 +272,7 @@ export const evaluateLine = (line, address = 0, allowBlockCode = false) => {
  * @param {object} _address 
  * @param {string} _arguments 
  */
-export const evaluateFunction = (_address, _arguments) => {
+export const evaluateFunction = (_address: any, _arguments: any) => {
     const blockStart = _address.data[2]
     let result = 0
 
