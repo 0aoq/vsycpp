@@ -1,0 +1,26 @@
+{
+  "name": "vsycpp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "0aoq",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0aoq/vsycpp.git"
+  },
+  "dependencies": {
+    "pkg": "^5.7.0"
+  },
+  "pkg": {
+    "scripts": "vsyc/**/*.js",
+    "outputPath": "build"
+  }
+}
