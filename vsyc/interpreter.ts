@@ -26,11 +26,11 @@ export let addressStore = []
  * @param {object} data
  * @returns {number} address
  */
-export const registerAddress = (type: string, data: object) => {
+export const registerAddress = (type: string, data: object, overwriteAddress?: any) => {
     const address = addressStore.length * 812
 
     addressStore.push({
-        address: address,
+        address: overwriteAddress || address,
         type: type,
         data: data
     })
@@ -52,17 +52,26 @@ export const getFromAddress = (address: number) => {
     }
 }
 
-let globalTree = []
+// let globalTree = []
+let storedTrees = {
+    'root': []
+}
+
+let currentTree = {
+    _map: storedTrees.root,
+    name: 'root'
+}
 
 /**
  * @function replaceVariablesInTree
  * @description Replace variables in a tree with their values
  * @param {object} tree 
  */
-export const replaceVariablesInTree = (tree: any = globalTree) => {
+export const replaceVariablesInTree = (tree: any = storedTrees.root) => {
     for (let address of addressStore) {
         if (address.type === tokenizer.typeList.STRING) {
             for (let i = 0; i < tree.length; i++) {
+                if (!tree[i].value) continue
                 if (tree[i].value.includes(`[#${address.data[0].trim()}]`)) {
                     tree[i].address = address.address
                 }
@@ -85,15 +94,19 @@ export const replaceVariablesInTree = (tree: any = globalTree) => {
  * @param {object} line
  * @param {number} _address
  * @param {boolean} allowBlockCode Allow code inside blocks to run
+ * @param {object[]} globalTree
+ * @param {string} treeName
  * @returns {object}
  */
-export const processKeyword = (keyword: string, line: any, _address: any, allowBlockCode: boolean) => {
+export const processKeyword = (keyword: string, line: any, _address: any, allowBlockCode: boolean, globalTree: any, treeName?: string) => {
+    if (globalTree._map) globalTree = globalTree._map
+    
     // if globalTree[line.parenti] is of type 'block' return
     // make sure function code doesn't get executed until needed
     if (
         !allowBlockCode &&
         globalTree[line.parenti] && globalTree[line.parenti].type === 'block'
-    ) return
+    ) [[], null]
 
     // evaluate the keyword
     switch (keyword) {
@@ -109,7 +122,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 const data = next.value.split('=')
                 if (!data[1]) {
                     console.warn(`[ERROR]: "${next.value}" is not a valid variable declaration`)
-                    break
+                    return [globalTree, null]
                 }
 
                 // register the address of the variable
@@ -122,7 +135,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 globalTree = replaceVariablesInTree(globalTree)
             }
 
-            break
+            return [globalTree, null]
 
         case "print":
             // when reaching a print statement, the next object should be a string
@@ -133,10 +146,10 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             )
 
             if (toPrint) console.log(toPrint.value)
-            break
+            return [globalTree, null]
 
         case "c":
-            break // comment
+            return [globalTree, null] // comment
 
         // functions
         case "func":
@@ -162,29 +175,34 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 globalTree.indexOf(line) + 2
             )
 
-            if (funcName && funcParams) {
+            if (funcName && funcBody && funcParams) {
                 // register the address of the function
                 const address = registerAddress(
                     tokenizer.typeList.BLOCK,
-                    [funcName.value, funcParams.value, funcBody.parenti + 1]
+                    [
+                        funcName.value, 
+                        funcParams.value, 
+                        globalTree.indexOf(funcBody), 
+                        treeName
+                    ],
+                    funcName.value
                 )
 
                 // update every item in the tree
                 for (let i = 0; i < globalTree.length; i++) {
-                    globalTree[i].value = globalTree[i].value.replaceAll(
-                        `*${funcName.value.trim()}`,
-                        address
-                    )
+                    if (globalTree[i].value.includes(`/\*${funcName.value}/gm`)) {
+                        globalTree[i].address = address
+                    }
                 }
             } else console.error("[ERROR]: Invalid function declaration")
-            break
+            return [globalTree, null]
 
         case "return":
             // when reaching a return statement, the next object can be anything
             // update the value of the object at the address to the
             // evaluated result of the return statement
             const statement = globalTree[globalTree.indexOf(line) + 1]
-            return evaluateLine(statement)
+            return [globalTree, evaluateLine(statement)]
 
         case "call":
             // when reaching a call statement, the next object should be a string
@@ -211,7 +229,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
 
             if (callName && callParams) {
                 // get the address of the function
-                const address = getFromAddress(parseFloat(callName.value))
+                const address = getFromAddress(callName.value.slice(1))
                 const _return = evaluateFunction(address, callParams.value)
 
                 // update values
@@ -224,23 +242,24 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                             for (let i = 0; i < globalTree.length; i++) {
                                 if (globalTree[i].address === address.address) {
                                     globalTree[i].value = _return
+                                    // console.log(globalTree[i], _return, address)
                                 }
                             }
 
-                            break
+                            return [globalTree, null]
                         }
                     }
                 }
             } else console.error("[ERROR]: Invalid function call method")
-            break
+            return [globalTree, null]
 
         // export and usingfile
-        case "exportall": 
+        case "exportall":
             // will be used to export the entire file's address store
             // will be fetched by "usingfile"
             globalTree[globalTree.indexOf(line)].store = addressStore
-            break
-            
+            return [globalTree, null]
+
         case "usingfile":
             // when reaching a usingfile statement, the next object should be a string
             const fileName = tokenizer.getNodeOfTypeFrom(
@@ -250,80 +269,90 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             )
 
             if (fileName) {
-                let treeSave = globalTree
-
                 // fetch the file using fs
                 const file = fs.readFileSync(path.resolve(fileName.value), 'utf8')
-                main(file)
-
-                // tokenize the file and then add each line to the tree with a parenti
-                // count starting at the last parenti in the tree
-                const lastParenti = treeSave[treeSave.length - 1].parenti
-
-                for (let i = 0; i < globalTree.length; i++) {
-                    globalTree[i].parenti = lastParenti + i
-                }
+                main(file, fileName.value)
 
                 // for every item in the file's address store (can be found at the item in
                 // the file's tree with the value of 'exportall' and type of 'keyword')
                 // add the item to the global address store
-                for (let item of globalTree) {
+                /* for (let item of globalTree) {
                     if (item.type === tokenizer.typeList.KEYWORD && item.value === "exportall") {
                         addressStore = addressStore.concat(item.store)
                         item.value = '*'
                         item.store = null
                         item.type = tokenizer.typeList.SELF_TYPE
                     }
-                }
-
-                // add the file's tree to the global tree
-                treeSave = treeSave.concat(globalTree)
-
-                // update every item in the tree
-                treeSave = replaceVariablesInTree(treeSave)
-
-                // reset the global tree
-                globalTree = treeSave
+                } */
             }
 
-            break
+            return [globalTree, null]
 
         default:
             if (!keywords.default.includes(keyword)) {
                 console.warn(`[ERROR]: Unknown keyword: ${keyword}, line:\n`, line)
             }
-            
-            break
+
+            return [globalTree, null]
     }
 }
 
 // main
 
-export const main = (str: string) => {
-    const tree = tokenizer.main(str) // tokenize
+export const main = (str: string, treeName?: string) => {
+    let tree = tokenizer.main(str) // tokenize
+    if (treeName) storedTrees[treeName] = tree
 
     // process
-    globalTree = tree
-    for (let line of tree) evaluateLine(line)
+    for (let line of tree) {
+        const returned = evaluateLine(line, 0, false, tree, treeName)
+        if (!returned || returned[0].length === 1) continue
+        tree = returned[0]
+    }
+
+    if (treeName) storedTrees[treeName] = tree
 }
 
 /**
  * @function evaluateLine
  * @description Evaluate a line of code
- * @param {object} line 
+ * @param {object} line
+ * @param {number} address
+ * @param {boolean} allowBlockCode
+ * @param {object[]} tree
+ * @param {string} treeName
  */
-export const evaluateLine = (line: any, address: number = 0, allowBlockCode: boolean = false) => {
+export const evaluateLine = (line: any, address: number = 0, allowBlockCode: boolean = false, tree: any = currentTree, treeName: string = 'root') => {
     switch (line.type) {
         case tokenizer.typeList.KEYWORD:
-            const _eval = processKeyword(line.value, line, address, allowBlockCode)
-            if (_eval !== []) return _eval
-            break
+            const [_tree, _result] = processKeyword(
+                line.value,
+                line,
+                address,
+                allowBlockCode,
+                tree,
+                treeName
+            )
+
+            return [_tree, _result]
 
         case tokenizer.typeList.STRING:
             return line.value
 
         default:
             break
+    }
+}
+
+/**
+ * @function switchTree
+ * @description Switch the current tree to the specified tree
+ * @param {string} treeName
+ */
+export const switchTree = (treeName: string) => {
+    currentTree = {
+        _map: storedTrees[treeName],
+        name: treeName
     }
 }
 
@@ -340,12 +369,27 @@ export const evaluateFunction = (_address: any, _arguments: any) => {
     }
 
     const blockStart = _address.data[2]
-    let result = 0
+    const treeName = _address.data[3] || 'root'
+    let result = 'VSYC++:INVALID_RETURN'
 
-    for (let line of globalTree) {
-        if (line.parenti === blockStart) result = evaluateLine(line, _address.address, true)
+    // switch currentTree
+    switchTree(treeName)
+
+    // evaluate
+    for (let line of currentTree._map) {
+        if (line.parenti === blockStart) {
+            const [_tree, _result] = evaluateLine(line, _address.data[0], true)
+            if (_result === null) continue
+
+            currentTree._map = _tree
+            storedTrees[currentTree.name] = currentTree
+
+            result = _result
+            break // after the first result, break
+        }
     }
 
+    switchTree('root') // switch tree back to root
     return result
 }
 

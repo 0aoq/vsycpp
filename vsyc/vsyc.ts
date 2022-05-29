@@ -22,5 +22,5 @@ const file = process.argv[2];
     }
 
     const fileContents = fs.readFileSync(file, 'utf8')
-    interpreter.main(fileContents)
+    interpreter.main(fileContents, 'root')
 })();

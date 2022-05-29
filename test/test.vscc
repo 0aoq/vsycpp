@@ -11,7 +11,8 @@
 @call "*test" () {statement}
 @print "[#statement]"
 
-@c "IMPORTED:"
+@c "IMPORTED FILE USE:"
 @declare "statement1 = 0"
 @call "*test1" () {statement1}
 @print "[#statement1]"
+@print "[#b]"
