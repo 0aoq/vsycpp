@@ -6,7 +6,6 @@
   "directories": {
     "test": "test"
   },
-  "type": "module",
   "scripts": {
     "build": "npx pkg ./build/src/vsyc.js --out-path ./build",
     "watch": "npx tsc -w"

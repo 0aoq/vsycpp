@@ -14,6 +14,9 @@ export default [
     'for',
     'elseif',
     'c', // comment
+    'cc', // multiline comment
     'call',
-    'print'
+    'print',
+    'exportall', // used to export the file's addresses
+    'usingfile'
 ]

@@ -215,7 +215,7 @@ export const main = (str: string) => {
                     let node = getLastNodeOfType(typeList.SELF_TYPE)
                     node.value += char
                 } else {
-                    createNode(typeList.SELF_TYPE, char)
+                    // createNode(typeList.SELF_TYPE, char)
                 }
 
                 break

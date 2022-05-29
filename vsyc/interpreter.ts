@@ -6,6 +6,10 @@
  */
 
 import * as tokenizer from './tokenizer.js'
+import * as keywords from './keywords.js'
+
+import * as fs from 'fs'
+import * as path from 'path'
 
 /**
  * @global
@@ -230,8 +234,65 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             } else console.error("[ERROR]: Invalid function call method")
             break
 
+        // export and usingfile
+        case "exportall": 
+            // will be used to export the entire file's address store
+            // will be fetched by "usingfile"
+            globalTree[globalTree.indexOf(line)].store = addressStore
+            break
+            
+        case "usingfile":
+            // when reaching a usingfile statement, the next object should be a string
+            const fileName = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.STRING,
+                globalTree.indexOf(line)
+            )
+
+            if (fileName) {
+                let treeSave = globalTree
+
+                // fetch the file using fs
+                const file = fs.readFileSync(path.resolve(fileName.value), 'utf8')
+                main(file)
+
+                // tokenize the file and then add each line to the tree with a parenti
+                // count starting at the last parenti in the tree
+                const lastParenti = treeSave[treeSave.length - 1].parenti
+
+                for (let i = 0; i < globalTree.length; i++) {
+                    globalTree[i].parenti = lastParenti + i
+                }
+
+                // for every item in the file's address store (can be found at the item in
+                // the file's tree with the value of 'exportall' and type of 'keyword')
+                // add the item to the global address store
+                for (let item of globalTree) {
+                    if (item.type === tokenizer.typeList.KEYWORD && item.value === "exportall") {
+                        addressStore = addressStore.concat(item.store)
+                        item.value = '*'
+                        item.store = null
+                        item.type = tokenizer.typeList.SELF_TYPE
+                    }
+                }
+
+                // add the file's tree to the global tree
+                treeSave = treeSave.concat(globalTree)
+
+                // update every item in the tree
+                treeSave = replaceVariablesInTree(treeSave)
+
+                // reset the global tree
+                globalTree = treeSave
+            }
+
+            break
+
         default:
-            console.warn(`[ERROR]: Unknown keyword: ${keyword}`)
+            if (!keywords.default.includes(keyword)) {
+                console.warn(`[ERROR]: Unknown keyword: ${keyword}, line:\n`, line)
+            }
+            
             break
     }
 }
@@ -273,6 +334,11 @@ export const evaluateLine = (line: any, address: number = 0, allowBlockCode: boo
  * @param {string} _arguments 
  */
 export const evaluateFunction = (_address: any, _arguments: any) => {
+    if (!_address) {
+        console.warn("[ERROR]: Invalid function address")
+        return
+    }
+
     const blockStart = _address.data[2]
     let result = 0
 

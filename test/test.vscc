@@ -1,0 +1,17 @@
+@c "Annoying way to just print 'Hello, world!'"
+@c "vsyc++ demo"
+
+@usingfile "test/test1.vscc"
+
+@func {test} () {
+    @return "Hello, world!"
+}
+
+@declare "statement = 0"
+@call "*test" () {statement}
+@print "[#statement]"
+
+@c "IMPORTED:"
+@declare "statement1 = 0"
+@call "*test1" () {statement1}
+@print "[#statement1]"

@@ -1,0 +1,7 @@
+@declare "b = 3"
+
+@func {test1} () {
+    @return "5"
+}
+
+@exportall
