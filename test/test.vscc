@@ -2,6 +2,7 @@
 @c "vsyc++ demo"
 
 @usingfile "test/test1.vscc"
+@usingfile "test/if.vscc"
 
 @func {test} () {
     @return "Hello, world!"

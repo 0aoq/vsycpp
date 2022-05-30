@@ -71,7 +71,7 @@ export const replaceVariablesInTree = (tree: any = storedTrees.root) => {
     for (let address of addressStore) {
         if (address.type === tokenizer.typeList.STRING) {
             for (let i = 0; i < tree.length; i++) {
-                if (!tree[i].value) continue
+                if (!tree[i].value || !tree[i].value.replaceAll) continue
                 if (tree[i].value.includes(`[#${address.data[0].trim()}]`)) {
                     tree[i].address = address.address
                 }
@@ -230,7 +230,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             if (callName && callParams) {
                 // get the address of the function
                 const address = getFromAddress(callName.value.slice(1))
-                const _return = evaluateFunction(address, callParams.value)
+                const _return = evaluateFunction(address, callParams.value)[1]
 
                 // update values
                 if (callVariableName) {
@@ -242,7 +242,6 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                             for (let i = 0; i < globalTree.length; i++) {
                                 if (globalTree[i].address === address.address) {
                                     globalTree[i].value = _return
-                                    // console.log(globalTree[i], _return, address)
                                 }
                             }
 
@@ -519,7 +518,7 @@ export const evaluateFunction = (_address: any, _arguments: any) => {
     // evaluate
     for (let line of currentTree._map) {
         if (line.parenti === blockStart) {
-            const [_tree, _result] = evaluateLine(line, _address.data[0], true)
+            const [_tree, _result] = evaluateLine(line, _address.data[0], true, currentTree._map, currentTree.name)
             if (_result === null) continue
 
             currentTree._map = _tree
