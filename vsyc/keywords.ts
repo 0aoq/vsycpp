@@ -18,5 +18,10 @@ export default [
     'call',
     'print',
     'exportall', // used to export the file's addresses
-    'usingfile'
+    'usingfile',
+
+    'if',
+    'eq',
+    'lt',
+    'gt'
 ]

@@ -1,0 +1,6 @@
+@declare "a = 1"
+@if {@eq {[#a]} {1}} "do:" {
+    @print "This only prints if the statement evaluates to true"
+}
+
+@print "This always prints"

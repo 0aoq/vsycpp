@@ -100,13 +100,13 @@ export const replaceVariablesInTree = (tree: any = storedTrees.root) => {
  */
 export const processKeyword = (keyword: string, line: any, _address: any, allowBlockCode: boolean, globalTree: any, treeName?: string) => {
     if (globalTree._map) globalTree = globalTree._map
-    
+
     // if globalTree[line.parenti] is of type 'block' return
     // make sure function code doesn't get executed until needed
     if (
         !allowBlockCode &&
         globalTree[line.parenti] && globalTree[line.parenti].type === 'block'
-    ) [[], null]
+    ) return [globalTree, null]
 
     // evaluate the keyword
     switch (keyword) {
@@ -180,9 +180,9 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 const address = registerAddress(
                     tokenizer.typeList.BLOCK,
                     [
-                        funcName.value, 
-                        funcParams.value, 
-                        globalTree.indexOf(funcBody), 
+                        funcName.value,
+                        funcParams.value,
+                        globalTree.indexOf(funcBody),
                         treeName
                     ],
                     funcName.value
@@ -272,21 +272,161 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 // fetch the file using fs
                 const file = fs.readFileSync(path.resolve(fileName.value), 'utf8')
                 main(file, fileName.value)
-
-                // for every item in the file's address store (can be found at the item in
-                // the file's tree with the value of 'exportall' and type of 'keyword')
-                // add the item to the global address store
-                /* for (let item of globalTree) {
-                    if (item.type === tokenizer.typeList.KEYWORD && item.value === "exportall") {
-                        addressStore = addressStore.concat(item.store)
-                        item.value = '*'
-                        item.store = null
-                        item.type = tokenizer.typeList.SELF_TYPE
-                    }
-                } */
             }
 
             return [globalTree, null]
+
+        case "if":
+            // when reaching an if statement, the next object should be a block
+            // containing the condition, and the object after should be a block
+            // containing the code to run if the condition is true
+            const ifCondition = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line)
+            )
+
+            const doStatement = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.STRING,
+                globalTree.indexOf(line) + 2
+            )
+
+            if (!doStatement || doStatement && doStatement.value !== 'do:') console.error("[ERROR]: Invalid if statement")
+            const ifBody = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(doStatement) + 1
+            )
+
+            if (ifCondition && ifBody) {
+                // evaluate the condition
+                let condition
+                for (let i = 0; i < globalTree.length; i++) {
+                    let line = globalTree[i]
+
+                    // make sure we're calling a comparison function
+                    if (
+                        line.value !== 'eq' &&
+                        line.value !== 'lt' &&
+                        line.value !== 'gt'
+                    ) continue
+
+                    // handle comparison functions
+                    const _s = evaluateLine(line, _address, true, globalTree, treeName)
+                    if (_s === undefined || _s === null) {
+                        console.error("[ERROR]: 'If' condition did not return")
+                        return [globalTree, null]
+                    }
+
+                    if (_s[1] !== undefined) {
+                        const [_tree, _result] = _s
+                        condition = _result
+                    } else {
+                        return [globalTree, null]
+                    }
+                }
+
+                // if the condition is true, evaluate the code
+                if (condition) {
+                    for (let line of globalTree) {
+                        if (line.parenti === globalTree.indexOf(ifBody)) evaluateLine(line, _address, true, globalTree, treeName)
+                    }
+                }
+            } else console.error("[ERROR]: Invalid if statement")
+
+        // lt, gt, equal
+        case "lt":
+            // when reaching lt, the next two objects should be blocks
+            // the first block should be the left side of the comparison
+            // the second block should be the right side of the comparison
+
+            // lt only supports numbers
+
+            const ltLeft = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line)
+            )
+
+            const ltRight = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
+            if (ltLeft && ltRight) {
+                // if ltLeft and ltRight can be parsed to a number, compare them
+                if (parseFloat(ltLeft.value) !== undefined || parseFloat(ltRight.value) !== undefined) {
+                    // if they can't be parsed to a number, compare the strings
+                    if (ltLeft.value < ltRight.value) return [globalTree, true]
+                    else return [globalTree, false]
+                }
+
+                return [globalTree, false]
+            } else console.error("[ERROR]: Invalid lt statement")
+
+        case "gt":
+            // when reaching gt, the next two objects should be blocks
+            // the first block should be the left side of the comparison
+            // the second block should be the right side of the comparison
+
+            // gt only supports numbers
+
+            const gtLeft = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line)
+            )
+
+            const gtRight = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
+            if (gtLeft && gtRight) {
+                // if gtLeft and gtRight can be parsed to a number, compare them
+                if (parseFloat(gtLeft.value) !== undefined || parseFloat(gtRight.value) !== undefined) {
+                    // if they can't be parsed to a number, compare the strings
+                    if (gtLeft.value > gtRight.value) return [globalTree, true]
+                    else return [globalTree, false]
+                }
+
+                return [globalTree, false]
+            } else console.error("[ERROR]: Invalid gt statement")
+
+        case "eq":
+            // when reaching equal, the next two objects should be blocks
+            // the first block should be the left side of the comparison
+            // the second block should be the right side of the comparison
+
+            // equal only supports numbers and strings
+
+            const equalLeft = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line)
+            )
+
+            const equalRight = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
+            if (equalLeft && equalRight) {
+                // if equalLeft and equalRight can be parsed to a number, compare them
+                if (parseFloat(equalLeft.value) !== undefined && parseFloat(equalRight.value) !== undefined) {
+                    // if they can't be parsed to a number, compare the strings
+                    if (equalLeft.value === equalRight.value) return [globalTree, true]
+                    else return [globalTree, false]
+                } else {
+                    // if they are not numbers, compare them as strings
+                    if (equalLeft.value === equalRight.value) return [globalTree, true]
+                    else return [globalTree, false]
+                }
+            } else console.error("[ERROR]: Invalid equal statement")
 
         default:
             if (!keywords.default.includes(keyword)) {
@@ -302,6 +442,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
 export const main = (str: string, treeName?: string) => {
     let tree = tokenizer.main(str) // tokenize
     if (treeName) storedTrees[treeName] = tree
+    switchTree(treeName) // switch tree
 
     // process
     for (let line of tree) {
@@ -337,10 +478,10 @@ export const evaluateLine = (line: any, address: number = 0, allowBlockCode: boo
             return [_tree, _result]
 
         case tokenizer.typeList.STRING:
-            return line.value
+            return [tree, line.value]
 
         default:
-            break
+            return [tree, null]
     }
 }
 
