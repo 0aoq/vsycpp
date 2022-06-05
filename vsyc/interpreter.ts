@@ -427,6 +427,42 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 }
             } else console.error("[ERROR]: Invalid equal statement")
 
+        case "insert":
+            // when reaching insert, the next object should be a string
+            // containing the value to insert, the value after should be a block
+            // containing the variable to insert into
+            const insertValue = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.STRING,
+                globalTree.indexOf(line)
+            )
+
+            const insertVariable = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
+            if (insertValue && insertVariable) {
+                // basically the same thing as the "call" function, but without the function part
+                for (let address of addressStore) {
+                    if (address.type === tokenizer.typeList.STRING && address.data[0] === insertVariable.value) {
+                        const array = JSON.parse(address.data[1])
+                        array.push(insertValue.value)
+                        address.data[1] = JSON.stringify(array)
+
+                        // update every item in the tree
+                        for (let i = 0; i < globalTree.length; i++) {
+                            if (globalTree[i].address === address.address) {
+                                globalTree[i].value = address.data[1]
+                            }
+                        }
+
+                        return [globalTree, null]
+                    }
+                }
+            }
+
         default:
             if (!keywords.default.includes(keyword)) {
                 console.warn(`[ERROR]: Unknown keyword: ${keyword}, line:\n`, line)

@@ -33,6 +33,7 @@ The `@` symbol is used to show the start of a command. Any characters after the 
 - `@for`: For loop
 - `@call`: Call a function, use `::` to call a built-in function
 - `@print`: Print a message to the console
+- `@insert`: Insert a value into an array
 
 ## Interpretation Example
 

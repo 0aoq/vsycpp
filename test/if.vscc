@@ -1,3 +1,10 @@
+@c "THIS PROGRAM:"
+@c "1. Declare a variable named 'a' to be equal the value '1'"
+@c "2. Create an if statement asking if the value of the variable 'a' is equal to the constant '1'"
+@c "3. If so, print the statement"
+@c "4. Print the statement outside of the if statement that will always be printed"
+@c "---- vsyc++ tests: if statement ----"
+
 @declare "a = 1"
 @if {@eq {[#a]} {1}} "do:" {
     @print "This only prints if the statement evaluates to true"
