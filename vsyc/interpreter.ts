@@ -275,6 +275,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
 
             return [globalTree, null]
 
+        // if/eq/gt/lt
         case "if":
             // when reaching an if statement, the next object should be a block
             // containing the condition, and the object after should be a block
@@ -427,10 +428,12 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 }
             } else console.error("[ERROR]: Invalid equal statement")
 
+        // arrays
         case "insert":
             // when reaching insert, the next object should be a string
             // containing the value to insert, the value after should be a block
             // containing the variable to insert into
+
             const insertValue = tokenizer.getNodeOfTypeFrom(
                 globalTree,
                 tokenizer.typeList.STRING,
@@ -462,6 +465,121 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                     }
                 }
             }
+
+        case "remove":
+            // when reaching remove, the next object should be a string
+            // containing the value to remove, the value after should be a block
+            // containing the variable to remove from
+
+            const removeValue = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.STRING,
+                globalTree.indexOf(line)
+            )
+
+            const removeVariable = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
+            if (removeValue && removeVariable) {
+                // basically the same thing as the "call" function, but without the function part
+                for (let address of addressStore) {
+                    if (address.type === tokenizer.typeList.STRING && address.data[0] === removeVariable.value) {
+                        const array = JSON.parse(address.data[1])
+                        const index = array.indexOf(removeValue.value)
+                        if (index !== -1) {
+                            array.splice(index, 1)
+                            address.data[1] = JSON.stringify(array)
+
+                            // update every item in the tree
+                            for (let i = 0; i < globalTree.length; i++) {
+                                if (globalTree[i].address === address.address) {
+                                    globalTree[i].value = address.data[1]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+
+        // general
+        /* case "read":
+            // when reaching a read statement, the next value should be a string
+            // containing the type of input to read, the value after should be a block
+            // containing the input variable, the value after that should be a block
+            // containing the output variable
+
+            const readType = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.STRING,
+                globalTree.indexOf(line)
+            )
+
+            let readInput = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
+            const readOutput = tokenizer.getNodeOfTypeFrom(
+                // the read output might contain a comma separator, this is the index
+                // of the value if we are reading an array
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 4
+            )
+
+            readInput.value = readInput.value.split(",")[1] !== undefined ? readInput.value.split(",")[1] : readInput.value
+            if (readType && readInput && readOutput) {
+                // basically the same thing as the "call" function, but without the function part
+                for (let address of addressStore) {
+                    // this is the address of our INPUT variable
+                    if (address.type === tokenizer.typeList.STRING && address.data[0] === readInput.value) {
+                        const input = address.data[1]
+                        
+                        for (let outAddress of addressStore) {
+                            // this is the address of our OUTPUT variable
+                            if (outAddress.type === tokenizer.typeList.STRING && outAddress.data[0] === readOutput.value) {
+                                if (readType === 'string') {
+                                    // do nothing, just return the value
+                                    const output = input
+                                    for (let i = 0; i < globalTree.length; i++) {
+                                        if (globalTree[i].address === outAddress.address) {
+                                            globalTree[i].value = output
+                                        }
+                                    }
+                                } else if (readType === 'number') {
+                                    // parse the value to a number
+                                    const output = parseFloat(input)
+                                    for (let i = 0; i < globalTree.length; i++) {
+                                        if (globalTree[i].address === outAddress.address) {
+                                            globalTree[i].value = output
+                                        }
+                                    }
+                                } else if (readType === 'array') {
+                                    // parse the value to an array
+                                    const output = JSON.parse(input)
+        
+                                    // get the index of the value to read
+                                    const index = parseInt(readOutput.value.split(",")[0])
+                                    if (index !== undefined) {
+                                        // if the index is valid, return the value at the index
+                                        const output1 = output[index]
+                                        for (let i = 0; i < globalTree.length; i++) {
+                                            if (globalTree[i].address === outAddress.address) {
+                                                globalTree[i].value = output1
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } */
 
         default:
             if (!keywords.default.includes(keyword)) {

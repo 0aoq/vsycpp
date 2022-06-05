@@ -1,0 +1,29 @@
+@declare "testArray = []"
+
+@c "------------------------------------"
+@c "Test 1: Insert into array"
+
+@insert "testValue1" {testArray}
+@insert "testValue2" {testArray}
+@insert "testValue3" {testArray}
+@insert "testValue4" {testArray}
+@insert "valueToRemove" {testArray}
+
+@print "TEST1:"
+@print "[#testArray]"
+@c "------------------------------------"
+@c "Test 2: Remove from array"
+
+@remove "valueToRemove" {testArray}
+
+@print "TEST2:"
+@print "[#testArray]"
+@c "------------------------------------"
+@c "Test 3: Read array value"
+
+@declare "testRead = 0"
+
+@read "array" {testArray} {0, testRead}
+@print "TEST3:"
+@print "[#testRead]"
+@c "------------------------------------"

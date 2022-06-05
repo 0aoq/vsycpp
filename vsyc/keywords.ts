@@ -23,5 +23,9 @@ export default [
     'if',
     'eq',
     'lt',
-    'gt'
+    'gt',
+
+    'remove',
+    'insert',
+    'read'
 ]
