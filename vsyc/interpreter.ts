@@ -506,11 +506,12 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
 
 
         // general
-        /* case "read":
+        case "read":
             // when reaching a read statement, the next value should be a string
             // containing the type of input to read, the value after should be a block
             // containing the input variable, the value after that should be a block
             // containing the output variable
+            if (line.value !== "read") return [globalTree, false]
 
             const readType = tokenizer.getNodeOfTypeFrom(
                 globalTree,
@@ -529,10 +530,12 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 // of the value if we are reading an array
                 globalTree,
                 tokenizer.typeList.BLOCK,
-                globalTree.indexOf(line) + 4
+                globalTree.indexOf(line) + 3
             )
 
-            readInput.value = readInput.value.split(",")[1] !== undefined ? readInput.value.split(",")[1] : readInput.value
+            let readOutputName = readOutput.value.split(",")[1] !== undefined ? readOutput.value.split(",")[1] : readOutput.value
+            readOutputName = readOutputName.trim()
+
             if (readType && readInput && readOutput) {
                 // basically the same thing as the "call" function, but without the function part
                 for (let address of addressStore) {
@@ -542,8 +545,8 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                         
                         for (let outAddress of addressStore) {
                             // this is the address of our OUTPUT variable
-                            if (outAddress.type === tokenizer.typeList.STRING && outAddress.data[0] === readOutput.value) {
-                                if (readType === 'string') {
+                            if (outAddress.type === tokenizer.typeList.STRING && outAddress.data[0] === readOutputName) {
+                                if (readType.value === 'string') {
                                     // do nothing, just return the value
                                     const output = input
                                     for (let i = 0; i < globalTree.length; i++) {
@@ -551,7 +554,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                                             globalTree[i].value = output
                                         }
                                     }
-                                } else if (readType === 'number') {
+                                } else if (readType.value === 'number') {
                                     // parse the value to a number
                                     const output = parseFloat(input)
                                     for (let i = 0; i < globalTree.length; i++) {
@@ -559,7 +562,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                                             globalTree[i].value = output
                                         }
                                     }
-                                } else if (readType === 'array') {
+                                } else if (readType.value === 'array') {
                                     // parse the value to an array
                                     const output = JSON.parse(input)
         
@@ -579,7 +582,9 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                         }
                     }
                 }
-            } */
+            }
+
+            return [globalTree, null]
 
         default:
             if (!keywords.default.includes(keyword)) {

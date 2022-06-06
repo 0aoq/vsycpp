@@ -22,8 +22,11 @@
 @c "Test 3: Read array value"
 
 @declare "testRead = 0"
-
 @read "array" {testArray} {0, testRead}
+
 @print "TEST3:"
+@print "[#testRead]"
+
+@read "array" {testArray} {1, testRead}
 @print "[#testRead]"
 @c "------------------------------------"

@@ -34,6 +34,8 @@ The `@` symbol is used to show the start of a command. Any characters after the 
 - `@call`: Call a function, use `::` to call a built-in function
 - `@print`: Print a message to the console
 - `@insert`: Insert a value into an array
+- `@remove`: Remove a value from an array
+- `@read`: Read a value from an array
 
 ## Interpretation Example
 
