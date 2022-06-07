@@ -585,6 +585,32 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             }
 
             return [globalTree, null]
+            
+        /* case "getIndex":
+            // when reaching a "getIndex" statement, the next value is expected to be a string
+            // contaning the value number. The next value is expected to be a block type containing
+            // the array to read from
+            
+            const getIndex_i = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.STRING,
+                globalTree.indexOf(line)
+            )
+            
+            const getIndex_array = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+            
+            if (getIndex_i && getIndex_array) {
+                for (let address of addressStore) {
+                    if (address.type === tokenizer.typeList.STRING && address.data[0] === getIndex_array.value) {
+                        const parsed = JSON.parse(address.data[1])
+                        return [globalTree, parse.indexOf(getIndex_i)]
+                    }
+                }
+            } */
 
         default:
             if (!keywords.default.includes(keyword)) {
