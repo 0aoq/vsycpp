@@ -26,5 +26,8 @@
       "vsyc/**/*.js"
     ],
     "outputPath": "build"
+  },
+  "devDependencies": {
+    "typedoc": "^0.22.17"
   }
 }

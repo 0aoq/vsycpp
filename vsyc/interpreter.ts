@@ -71,7 +71,14 @@ export const replaceVariablesInTree = (tree: any = storedTrees.root) => {
     for (let address of addressStore) {
         if (address.type === tokenizer.typeList.STRING) {
             for (let i = 0; i < tree.length; i++) {
-                if (!tree[i].value || !tree[i].value.replaceAll) continue
+                if (
+                    // GLOBAL
+                    !tree[i].value || !tree[i].value.replaceAll
+                    // SCOPE CHECK
+                    || address.data[2] !== -1 && tree[i].parenti !== address.data[2] /* check if the address does not have a global scope, and then
+                                                                                     /* if the parenti of the tree item is not the same as the scope */
+                ) continue
+
                 if (tree[i].value.includes(`[#${address.data[0].trim()}]`)) {
                     tree[i].address = address.address
                 }
@@ -128,7 +135,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 // register the address of the variable
                 const address = registerAddress(
                     tokenizer.typeList.STRING,
-                    [data[0].trim(), data[1].trim()]
+                    [data[0].trim(), data[1].trim(), -1] // name, value, parenti scope (-1: global)
                 )
 
                 // update every item in the tree
@@ -180,10 +187,10 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 const address = registerAddress(
                     tokenizer.typeList.BLOCK,
                     [
-                        funcName.value,
-                        funcParams.value,
-                        globalTree.indexOf(funcBody),
-                        treeName
+                        funcName.value, // name
+                        funcParams.value, // value
+                        globalTree.indexOf(funcBody), // parenti
+                        treeName // treeName
                     ],
                     funcName.value
                 )
@@ -230,6 +237,8 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             if (callName && callParams) {
                 // get the address of the function
                 const address = getFromAddress(callName.value.slice(1))
+                // TODO (around this line): create scoped variables for each parameter of the function
+                // ALSO TODO: allow scoped functions
                 const _return = evaluateFunction(address, callParams.value)[1]
 
                 // update values
@@ -542,7 +551,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                     // this is the address of our INPUT variable
                     if (address.type === tokenizer.typeList.STRING && address.data[0] === readInput.value) {
                         const input = address.data[1]
-                        
+
                         for (let outAddress of addressStore) {
                             // this is the address of our OUTPUT variable
                             if (outAddress.type === tokenizer.typeList.STRING && outAddress.data[0] === readOutputName) {
@@ -565,7 +574,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                                 } else if (readType.value === 'array') {
                                     // parse the value to an array
                                     const output = JSON.parse(input)
-        
+
                                     // get the index of the value to read
                                     const index = parseInt(readOutput.value.split(",")[0])
                                     if (index !== undefined) {
@@ -585,6 +594,25 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             }
 
             return [globalTree, null]
+
+        case "execjs":
+            // basic single-call keyword to execute javascript statements from wihin the program
+            // could be used to create a function like document.getElementById() using actual javascript
+
+            // when reaching an execjs statement, the next value should be a string
+            // containing the javascript code to execute
+            const execjs_code = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.STRING,
+                globalTree.indexOf(line)
+            )
+
+            if (execjs_code) {
+                // create a new Function object with the code to run
+                return [globalTree, new Function(execjs_code.value)()]
+            } else {
+                return [globalTree, false]
+            }
 
         default:
             if (!keywords.default.includes(keyword)) {
@@ -624,6 +652,7 @@ export const main = (str: string, treeName?: string) => {
 export const evaluateLine = (line: any, address: number = 0, allowBlockCode: boolean = false, tree: any = currentTree, treeName: string = 'root') => {
     switch (line.type) {
         case tokenizer.typeList.KEYWORD:
+            // this is the main part where stuff gets processed
             const [_tree, _result] = processKeyword(
                 line.value,
                 line,
