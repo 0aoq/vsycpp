@@ -1,6 +1,6 @@
 /**
  * @file Handle interpretation of whole files and their contents
- * @name index.js
+ * @name vsyc.ts
  * @author 0aoq <hkau@oxvs.net>
  * @license Apache-2.0
  */

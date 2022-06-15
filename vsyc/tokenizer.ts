@@ -1,6 +1,6 @@
 /**
  * @file Handle tokenization of a string
- * @name tokenizer.js
+ * @name tokenizer.ts
  * @author 0aoq <hkau@oxvs.net>
  * @license Apache-2.0
  */

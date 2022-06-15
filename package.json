@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "npx pkg ./build/src/vsyc.js --out-path ./build",
-    "watch": "npx tsc -w"
+    "watch": "npx tsc -w",
+    "build:docs": "npx typedoc"
   },
   "author": "0aoq",
   "license": "Apache-2.0",

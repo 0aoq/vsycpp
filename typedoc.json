@@ -1,0 +1,8 @@
+{
+    "entryPoints": [
+        "vsyc/vsyc.ts",
+        "vsyc/tokenizer.ts",
+        "vsyc/interpreter.ts",
+        "vsyc/keywords.ts"
+    ]
+}

@@ -1,6 +1,6 @@
 /**
  * @file Handle interpreation of a tokenized string
- * @name interpreter.js
+ * @name interpreter.ts
  * @author 0aoq <hkau@oxvs.net>
  * @license Apache-2.0
  */
@@ -53,11 +53,21 @@ export const getFromAddress = (address: number) => {
 }
 
 // let globalTree = []
-let storedTrees = {
+/**
+ * @global
+ * @name storedTrees
+ * @description An object storing the state of all loaded file trees and their execution states
+ */
+export let storedTrees = {
     'root': []
 }
 
-let currentTree = {
+/**
+ * @global
+ * @name currentTree
+ * @description An object representing the current state of the current tree under storedTrees
+ */
+export let currentTree = {
     _map: storedTrees.root,
     name: 'root'
 }
