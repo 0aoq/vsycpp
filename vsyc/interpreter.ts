@@ -83,21 +83,46 @@ export const replaceVariablesInTree = (tree: any = storedTrees.root) => {
             for (let i = 0; i < tree.length; i++) {
                 if (
                     // GLOBAL
-                    !tree[i].value || !tree[i].value.replaceAll
+                    tree[i].value 
                     // SCOPE CHECK
-                    || address.data[2] !== -1 && tree[i].parenti !== address.data[2] /* check if the address does not have a global scope, and then
-                                                                                     /* if the parenti of the tree item is not the same as the scope */
-                ) continue
+                    && tree[i].parenti === address.data[2]
+                    //  GLOBAL
+                    || tree[i].value.replaceAll
+                    // SCOPE CHECK
+                    && tree[i].parenti === address.data[2] /* check if the address does not have a global scope, and then
+                    //                                        if the parenti of the tree item is not the same as the scope */
+                    || address.data[2] === -1
+                ) {
+                    if (tree[i].value.includes(`[#${address.data[0].trim()}]`)) {
+                        tree[i].address = address.address
+                    }
 
-                if (tree[i].value.includes(`[#${address.data[0].trim()}]`)) {
-                    tree[i].address = address.address
+                    tree[i].value = tree[i].value.replaceAll(
+                        `[#${address.data[0].trim()}]`,
+                        (address.data[1] || "").trim()
+                    )
                 }
-
-                tree[i].value = tree[i].value.replaceAll(
-                    `[#${address.data[0].trim()}]`,
-                    (address.data[1] || "").trim()
-                )
             }
+        }
+    }
+
+    return tree
+}
+
+/**
+ * @function replaceOldVariableValues
+ * @description Replace old variable values with new ones
+ * @param {object} tree
+ * @param {string} oldData
+ * @param {object} address
+ */
+export const replaceOldVariableValues = (tree: any = storedTrees.root, oldData: string, address: any) => {
+    for (let i = 0; i < tree.length; i++) {
+        if (tree[i].address === address.address) {
+            tree[i].value = tree[i].value.replace(
+                oldData, // old value
+                address.data[1] // new value
+            )
         }
     }
 
@@ -138,14 +163,14 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             if (next) {
                 const data = next.value.split('=')
                 if (!data[1]) {
-                    console.warn(`[ERROR]: "${next.value}" is not a valid variable declaration`)
+                    console.error("\x1b[1m\x1b[31m", `[ERROR]: "${next.value}" is not a valid variable declaration`, "\x1b[0m")
                     return [globalTree, null]
                 }
 
                 // register the address of the variable
                 const address = registerAddress(
                     tokenizer.typeList.STRING,
-                    [data[0].trim(), data[1].trim(), -1] // name, value, parenti scope (-1: global)
+                    [data[0].trim(), data[1].trim(), line.parenti] // name, value, parenti scope (-1: global)
                 )
 
                 // update every item in the tree
@@ -197,10 +222,11 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 const address = registerAddress(
                     tokenizer.typeList.BLOCK,
                     [
-                        funcName.value, // name
-                        funcParams.value, // value
-                        globalTree.indexOf(funcBody), // parenti
-                        treeName // treeName
+                        funcName.value, // [0] name
+                        funcParams.value, // [1] value
+                        globalTree.indexOf(funcBody), // [2] code block parenti
+                        treeName, // [3] treeName
+                        funcParams.value.split(',').map(param => param.trim()) // [4] params
                     ],
                     funcName.value
                 )
@@ -211,7 +237,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                         globalTree[i].address = address
                     }
                 }
-            } else console.error("[ERROR]: Invalid function declaration")
+            } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid function declaration", "\x1b[0m")
             return [globalTree, null]
 
         case "return":
@@ -249,26 +275,47 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 const address = getFromAddress(callName.value.slice(1))
                 // TODO (around this line): create scoped variables for each parameter of the function
                 // ALSO TODO: allow scoped functions
-                const _return = evaluateFunction(address, callParams.value)[1]
+                let _return
+                let _params = callParams.value.split(',').map(param => param.trim())
+
+                // make sure it has EXACTLY the amount of parameters as the function has (strict)
+                if (/* strictMode && */ address.data[4].length === _params.length) {
+                    // for each parameter under _params, create a scoped variable with the name of the parameter under address.data[4]
+                    // and set the value to the parameter
+                    for (let i = 0; i < _params.length; i++) {
+                        const scopedVariable = registerAddress(
+                            tokenizer.typeList.STRING,
+                            [
+                                `${callName.value.slice(1)}.args.${address.data[4][i]}`, // name
+                                _params[i], // value
+                                address.data[2] // parenti
+                            ]
+                        )
+
+                        globalTree = replaceVariablesInTree(globalTree)
+                    }
+
+                    // evaluate
+                    _return = evaluateFunction(address)
+                } else {
+                    console.error("\x1b[1m\x1b[31m", `[ERROR]: Function "${callName.value}" has ${address.data[4].length} parameters, but ${_params.length} were provided`, "\x1b[0m")
+                    return [globalTree, null]
+                }
 
                 // update values
                 if (callVariableName) {
                     for (let address of addressStore) {
                         if (address.type === tokenizer.typeList.STRING && address.data[0] === callVariableName.value) {
+                            const oldData = address.data[1]
                             address.data[1] = _return || address.data[1]
 
                             // update every item in the tree
-                            for (let i = 0; i < globalTree.length; i++) {
-                                if (globalTree[i].address === address.address) {
-                                    globalTree[i].value = _return
-                                }
-                            }
-
+                            globalTree = replaceOldVariableValues(globalTree, oldData, address)
                             return [globalTree, null]
                         }
                     }
                 }
-            } else console.error("[ERROR]: Invalid function call method")
+            } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid function call method", "\x1b[0m")
             return [globalTree, null]
 
         // export and usingfile
@@ -311,7 +358,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 globalTree.indexOf(line) + 2
             )
 
-            if (!doStatement || doStatement && doStatement.value !== 'do:') console.error("[ERROR]: Invalid if statement")
+            if (!doStatement || doStatement && doStatement.value !== 'do:') console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid if statement", "\x1b[0m")
             const ifBody = tokenizer.getNodeOfTypeFrom(
                 globalTree,
                 tokenizer.typeList.BLOCK,
@@ -334,7 +381,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                     // handle comparison functions
                     const _s = evaluateLine(line, _address, true, globalTree, treeName)
                     if (_s === undefined || _s === null) {
-                        console.error("[ERROR]: 'If' condition did not return")
+                        console.error("\x1b[1m\x1b[31m", "[ERROR]: 'If' condition did not return", "\x1b[0m")
                         return [globalTree, null]
                     }
 
@@ -352,7 +399,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                         if (line.parenti === globalTree.indexOf(ifBody)) evaluateLine(line, _address, true, globalTree, treeName)
                     }
                 }
-            } else console.error("[ERROR]: Invalid if statement")
+            } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid if statement", "\x1b[0m")
 
         // lt, gt, equal
         case "lt":
@@ -383,7 +430,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 }
 
                 return [globalTree, false]
-            } else console.error("[ERROR]: Invalid lt statement")
+            } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid lt statement", "\x1b[0m")
 
         case "gt":
             // when reaching gt, the next two objects should be blocks
@@ -413,7 +460,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 }
 
                 return [globalTree, false]
-            } else console.error("[ERROR]: Invalid gt statement")
+            } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid gt statement", "\x1b[0m")
 
         case "eq":
             // when reaching equal, the next two objects should be blocks
@@ -445,7 +492,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                     if (equalLeft.value === equalRight.value) return [globalTree, true]
                     else return [globalTree, false]
                 }
-            } else console.error("[ERROR]: Invalid equal statement")
+            } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid equal statement", "\x1b[0m")
 
         // arrays
         case "insert":
@@ -469,16 +516,13 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 // basically the same thing as the "call" function, but without the function part
                 for (let address of addressStore) {
                     if (address.type === tokenizer.typeList.STRING && address.data[0] === insertVariable.value) {
+                        const oldData = address.data[1]
                         const array = JSON.parse(address.data[1])
                         array.push(insertValue.value)
                         address.data[1] = JSON.stringify(array)
 
                         // update every item in the tree
-                        for (let i = 0; i < globalTree.length; i++) {
-                            if (globalTree[i].address === address.address) {
-                                globalTree[i].value = address.data[1]
-                            }
-                        }
+                        globalTree = replaceOldVariableValues(globalTree, oldData, address)
 
                         return [globalTree, null]
                     }
@@ -506,6 +550,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 // basically the same thing as the "call" function, but without the function part
                 for (let address of addressStore) {
                     if (address.type === tokenizer.typeList.STRING && address.data[0] === removeVariable.value) {
+                        const oldData = address.data[1]
                         const array = JSON.parse(address.data[1])
                         const index = array.indexOf(removeValue.value)
                         if (index !== -1) {
@@ -513,11 +558,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                             address.data[1] = JSON.stringify(array)
 
                             // update every item in the tree
-                            for (let i = 0; i < globalTree.length; i++) {
-                                if (globalTree[i].address === address.address) {
-                                    globalTree[i].value = address.data[1]
-                                }
-                            }
+                            globalTree = replaceOldVariableValues(globalTree, oldData, address)
                         }
                     }
                 }
@@ -604,7 +645,7 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
             }
 
             return [globalTree, null]
-            
+
         /* case "getIndex":
             // when reaching a "getIndex" statement, the next value is expected to be a string
             // contaning the value number. The next value is expected to be a block type containing
@@ -643,16 +684,33 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 globalTree.indexOf(line)
             )
 
+            const execjs_output = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
             if (execjs_code) {
                 // create a new Function object with the code to run
-                return [globalTree, new Function(execjs_code.value)()]
+                const res = new Function(execjs_code.value)()
+
+                // update the value of the output variable
+                for (let address of addressStore) {
+                    if (address.type === tokenizer.typeList.STRING && address.data[0] === execjs_output.value) {
+                        const oldData = address.data[1]
+                        address.data[1] = res
+
+                        // update every item in the tree
+                        globalTree = replaceOldVariableValues(globalTree, oldData, address)
+                    }
+                }
             } else {
                 return [globalTree, false]
             }
 
         default:
             if (!keywords.default.includes(keyword)) {
-                console.warn(`[ERROR]: Unknown keyword: ${keyword}, line:\n`, line)
+                console.error("\x1b[1m\x1b[31m", `[ERROR]: Unknown keyword: ${keyword}, line:\n`, line, "\x1b[0m")
             }
 
             return [globalTree, null]
@@ -724,15 +782,15 @@ export const switchTree = (treeName: string) => {
  * @function evaluateFunction
  * @description Evaluate a function
  * @param {object} _address 
- * @param {string} _arguments 
+ * @returns {string} Result of the function
  */
-export const evaluateFunction = (_address: any, _arguments: any) => {
+export const evaluateFunction = (_address: any) => {
     if (!_address) {
-        console.warn("[ERROR]: Invalid function address")
+        console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid function address", "\x1b[0m")
         return
     }
 
-    const blockStart = _address.data[2]
+    const blockStart = _address.data[2] // this is the parenti where all function code must be located
     const treeName = _address.data[3] || 'root'
     let result = 'VSYC++:INVALID_RETURN'
 
@@ -743,7 +801,7 @@ export const evaluateFunction = (_address: any, _arguments: any) => {
     for (let line of currentTree._map) {
         if (line.parenti === blockStart) {
             const [_tree, _result] = evaluateLine(line, _address.data[0], true, currentTree._map, currentTree.name)
-            if (_result === null) continue
+            if (_result === null || currentTree._map[currentTree._map.indexOf(line) - 1].value !== "return") continue
 
             currentTree._map = _tree
             storedTrees[currentTree.name] = currentTree

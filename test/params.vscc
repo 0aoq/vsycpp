@@ -1,0 +1,18 @@
+@c "THIS PROGRAM:"
+@c "1. Create a function with some parameters"
+@c "2. Call the function and pass all the parameters"
+@c "3. Print the return and all the parameter values to test if it worked properly"
+@c "4. Try to log a parameter that is out of scope"
+@c "---- vsyc++ tests: function parameters ----"
+
+@func {params_test} (a, b) {
+    @print "[#params_test.args.a]"
+    @print "[#params_test.args.b]"
+    
+    @return "5"
+}
+
+@declare "result = 0"
+@call "*params_test" (1, 2)  {result}
+@print "RESULT: [#result]"
+@print "[#params_test.args.a]"
