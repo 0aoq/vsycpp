@@ -27,5 +27,7 @@ export default [
 
     'remove',
     'insert',
-    'read'
+    'read',
+
+    'execjs'
 ]

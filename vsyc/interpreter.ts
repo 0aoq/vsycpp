@@ -83,7 +83,7 @@ export const replaceVariablesInTree = (tree: any = storedTrees.root) => {
             for (let i = 0; i < tree.length; i++) {
                 if (
                     // GLOBAL
-                    tree[i].value 
+                    tree[i].value
                     // SCOPE CHECK
                     && tree[i].parenti === address.data[2]
                     //  GLOBAL
@@ -92,6 +92,7 @@ export const replaceVariablesInTree = (tree: any = storedTrees.root) => {
                     && tree[i].parenti === address.data[2] /* check if the address does not have a global scope, and then
                     //                                        if the parenti of the tree item is not the same as the scope */
                     || address.data[2] === -1
+                    || tree[i - 1] && tree[i - 1].value === "return" // cheat to make return statements work properly (???)
                 ) {
                     if (tree[i].value.includes(`[#${address.data[0].trim()}]`)) {
                         tree[i].address = address.address
@@ -494,6 +495,27 @@ export const processKeyword = (keyword: string, line: any, _address: any, allowB
                 }
             } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid equal statement", "\x1b[0m")
 
+        case "op":
+            // an "op" statement means the opposite or something ... it's just just going to return the opposite of an "eq" statement
+
+            const opLeft = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line)
+            )
+
+            const opRight = tokenizer.getNodeOfTypeFrom(
+                globalTree,
+                tokenizer.typeList.BLOCK,
+                globalTree.indexOf(line) + 2
+            )
+
+            if (opLeft && opRight) {
+                line.value = "eq"
+                const [_tree, _result] = processKeyword("eq", line, _address, allowBlockCode, globalTree, treeName)
+                return [_tree, !_result]
+            } else console.error("\x1b[1m\x1b[31m", "[ERROR]: Invalid \"opposite\" statement", "\x1b[0m")
+
         // arrays
         case "insert":
             // when reaching insert, the next object should be a string
@@ -799,9 +821,20 @@ export const evaluateFunction = (_address: any) => {
 
     // evaluate
     for (let line of currentTree._map) {
-        if (line.parenti === blockStart) {
+        if (
+            line.parenti === blockStart
+            || currentTree._map[currentTree._map.indexOf(line) + 2]
+        ) {
             const [_tree, _result] = evaluateLine(line, _address.data[0], true, currentTree._map, currentTree.name)
-            if (_result === null || currentTree._map[currentTree._map.indexOf(line) - 1].value !== "return") continue
+
+            if (
+                _result === null 
+                
+                || currentTree._map[currentTree._map.indexOf(line) - 1]
+                && currentTree._map[currentTree._map.indexOf(line) - 1].value !== "return"
+
+                || currentTree._map[currentTree._map.indexOf(line) + 1].address === null
+            ) continue
 
             currentTree._map = _tree
             storedTrees[currentTree.name] = currentTree

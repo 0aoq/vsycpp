@@ -15,6 +15,7 @@
 export const typeList = {
     STRING: 'string',
     BLOCK: 'block',
+    CLOSE_BLOCK: 'close_block',
     PAREN: 'paren',
     NUMBER: 'number',
     ARRAY: 'array',
@@ -132,6 +133,7 @@ export const main = (str: string) => {
                 break
 
             case '}':
+                createNode(typeList.CLOSE_BLOCK, '')
                 state.inBlock = false
                 if (state.wasPreviouslyInParen) state.inParen = true // set the paren state back
                 break
